@@ -27,7 +27,10 @@ class MediaController extends Controller
         $file = $request->file('file');
         $collection = $validated['collection'] ?? 'default';
         $disk = config('filesystems.media_disk', 'public');
-        $path = $file->store("uploads/{$collection}", $disk);
+        $path = $file->store("uploads/{$collection}", [
+            'disk' => $disk,
+            'visibility' => 'public',
+        ]);
 
         $media = Media::query()->create([
             'disk' => $disk,
@@ -41,12 +44,8 @@ class MediaController extends Controller
             'uploaded_by' => $request->user()?->id,
         ]);
 
-        $relativeUrl = Storage::disk($disk)->url($path);
-        // Prefer relative /storage/... so the Next.js app can proxy it.
-        // Absolute 127.0.0.1 URLs break next/image (private IP blocked → 400).
-        $url = str_starts_with($relativeUrl, 'http')
-            ? (parse_url($relativeUrl, PHP_URL_PATH) ?: $relativeUrl)
-            : $relativeUrl;
+        $storedUrl = Storage::disk($disk)->url($path);
+        $url = $this->publicMediaUrl($storedUrl);
 
         return response()->json([
             'data' => [
@@ -62,5 +61,22 @@ class MediaController extends Controller
         $medium->delete();
 
         return response()->json(['message' => 'ลบไฟล์แล้ว']);
+    }
+
+    /**
+     * Keep cloud URLs absolute; collapse local APP_URL /storage paths for Next.js proxy.
+     */
+    private function publicMediaUrl(string $storedUrl): string
+    {
+        if (! str_starts_with($storedUrl, 'http')) {
+            return $storedUrl;
+        }
+
+        $host = parse_url($storedUrl, PHP_URL_HOST) ?: '';
+        if (in_array($host, ['127.0.0.1', 'localhost'], true)) {
+            return parse_url($storedUrl, PHP_URL_PATH) ?: $storedUrl;
+        }
+
+        return $storedUrl;
     }
 }

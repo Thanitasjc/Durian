@@ -1,7 +1,8 @@
 /**
  * Normalize Laravel media URLs for the Next.js app.
- * Absolute http://127.0.0.1:8000/storage/... breaks next/image (private IP → 400).
- * Relative /storage/... is proxied by next.config rewrites.
+ * - Relative /storage/... is proxied by next.config rewrites (local disk).
+ * - Absolute http://127.0.0.1:8000/storage/... → /storage/... (next/image blocks private IPs).
+ * - Cloud URLs (Supabase Storage / S3 / Unsplash) are left absolute.
  */
 export function toPublicMediaUrl(url: string | null | undefined): string {
   if (!url) return "";
@@ -14,7 +15,11 @@ export function toPublicMediaUrl(url: string | null | undefined): string {
 
   try {
     const parsed = new URL(trimmed);
-    if (parsed.pathname.startsWith("/storage/")) {
+    const host = parsed.hostname;
+    if (
+      (host === "127.0.0.1" || host === "localhost") &&
+      parsed.pathname.startsWith("/storage/")
+    ) {
       return `${parsed.pathname}${parsed.search}`;
     }
   } catch {

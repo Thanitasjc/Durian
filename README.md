@@ -101,6 +101,15 @@ $env:SUPABASE_ACCESS_TOKEN = "sbp_YOUR_TOKEN"   # https://supabase.com/dashboard
 php artisan migrate:fresh --seed
 ```
 
+### Storage (Supabase)
+
+- Project Storage bucket: **`media`** (public) on `auragold-durian`  
+- Other websites on the same Supabase **account** are fine — this is a **separate project + bucket**  
+- Laravel uses S3-compatible API (`FILESYSTEM_DISK=s3` / `MEDIA_DISK=s3`)  
+- Public file URL pattern:  
+  `https://<ref>.supabase.co/storage/v1/object/public/media/...`  
+- After switching to S3, **re-upload** images that previously lived only on local disk / Render ephemeral disk
+
 ### Laravel API (Render)
 
 - Live API: https://auragold-durian-api.onrender.com  

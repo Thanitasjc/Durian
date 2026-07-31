@@ -12,9 +12,11 @@ import type { Product } from "@/lib/api";
 
 type Props = {
   products: Product[];
+  /** Auto-advance interval in ms; 0 disables. Default 4500. */
+  autoplayMs?: number;
 };
 
-function useVisibleCount() {
+function usePreferredVisible() {
   const [count, setCount] = useState(4);
 
   useEffect(() => {
@@ -32,12 +34,17 @@ function useVisibleCount() {
   return count;
 }
 
-export function FeaturedProductsSlider({ products }: Props) {
-  const visible = useVisibleCount();
-  const canSlide = products.length > visible;
+export function FeaturedProductsSlider({
+  products,
+  autoplayMs = 4500,
+}: Props) {
+  const preferredVisible = usePreferredVisible();
+  const visible = Math.min(preferredVisible, Math.max(products.length, 1));
+  // Slide whenever there is more than one product (infinite loop),
+  // even if the viewport already shows all of them.
+  const canSlide = products.length > 1;
   const slidePct = 100 / visible;
 
-  // Clone edges for seamless loop
   const track = useMemo(() => {
     if (!products.length) return [];
     if (!canSlide) return products;
@@ -48,11 +55,10 @@ export function FeaturedProductsSlider({ products }: Props) {
     ];
   }, [products, visible, canSlide]);
 
-  // Logical index into original products (0..n-1)
-  // Track position index includes leading clones offset
-  const [pos, setPos] = useState(visible);
+  const [pos, setPos] = useState(canSlide ? visible : 0);
   const [animate, setAnimate] = useState(true);
   const [dragPx, setDragPx] = useState(0);
+  const [paused, setPaused] = useState(false);
   const viewportRef = useRef<HTMLDivElement>(null);
   const dragging = useRef(false);
   const startX = useRef(0);
@@ -64,7 +70,6 @@ export function FeaturedProductsSlider({ products }: Props) {
     posRef.current = pos;
   }, [pos]);
 
-  // Reset position when visible count / products change
   useEffect(() => {
     setAnimate(false);
     setPos(canSlide ? visible : 0);
@@ -84,6 +89,17 @@ export function FeaturedProductsSlider({ products }: Props) {
 
   const prev = useCallback(() => goTo(-1), [goTo]);
   const next = useCallback(() => goTo(1), [goTo]);
+
+  // Autoplay
+  useEffect(() => {
+    if (!canSlide || paused || autoplayMs <= 0) return;
+    const id = window.setInterval(() => {
+      if (dragging.current) return;
+      setAnimate(true);
+      setPos((p) => p + 1);
+    }, autoplayMs);
+    return () => window.clearInterval(id);
+  }, [canSlide, paused, autoplayMs]);
 
   const onTransitionEnd = useCallback(() => {
     if (!canSlide || dragging.current) return;
@@ -114,7 +130,6 @@ export function FeaturedProductsSlider({ products }: Props) {
 
   const onPointerDown = (e: React.PointerEvent) => {
     if (!canSlide) return;
-    // Don't start drag from buttons / links
     const target = e.target as HTMLElement;
     if (target.closest("button, a, input")) return;
 
@@ -123,6 +138,7 @@ export function FeaturedProductsSlider({ products }: Props) {
     startX.current = clientX(e);
     startDrag.current = dragPx;
     setAnimate(false);
+    setPaused(true);
     (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
   };
 
@@ -148,11 +164,11 @@ export function FeaturedProductsSlider({ products }: Props) {
 
     setAnimate(true);
     setDragPx(0);
+    setPaused(false);
 
     if (steps !== 0) {
       setPos((p) => p + steps);
     } else {
-      // snap back
       setPos((p) => p);
     }
   };
@@ -176,7 +192,11 @@ export function FeaturedProductsSlider({ products }: Props) {
   const translatePct = pos * slidePct;
 
   return (
-    <div className="relative mt-12">
+    <div
+      className="relative mt-12"
+      onMouseEnter={() => setPaused(true)}
+      onMouseLeave={() => setPaused(false)}
+    >
       {canSlide ? (
         <>
           <button
