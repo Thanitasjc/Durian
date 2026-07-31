@@ -28,7 +28,7 @@ class HomeController extends Controller
             ->with('inventoryItem')
             ->orderBy('sort_order')
             ->orderBy('id')
-            ->limit(12)
+            ->limit(5)
             ->get();
 
         $hotProducts = Product::query()
