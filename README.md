@@ -101,6 +101,10 @@ $env:SUPABASE_ACCESS_TOKEN = "sbp_YOUR_TOKEN"   # https://supabase.com/dashboard
 php artisan migrate:fresh --seed
 ```
 
-### Laravel API host (still needed)
+### Laravel API (Render)
 
-Supabase hosts **Postgres only**. Deploy Laravel (Railway / Render / VPS) with the same `DB_*` env, then set Vercel `API_URL` to that public API URL.
+- Live API: https://auragold-durian-api.onrender.com  
+- Health: `GET /up`  
+- Free instance may cold-start after idle (first request can take ~30–60s)  
+- Vercel env: `API_URL=https://auragold-durian-api.onrender.com`  
+- DB: same Supabase Postgres as local `backend/.env`
