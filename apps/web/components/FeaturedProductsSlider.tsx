@@ -1,6 +1,12 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { ProductCard } from "@/components/ProductCard";
 import type { Product } from "@/lib/api";
 
@@ -28,86 +34,160 @@ function useVisibleCount() {
 }
 
 /**
- * แสดง 4 ชิ้นต่อแถว (desktop) แล้วเลื่อนทีละชิ้น
- * ใช้ native scroll-snap ให้กดลูกศร / ลาก / autoplay ได้จริง
+ * สินค้าแนะนำ — แสดง 4 ชิ้นต่อแถว (desktop) + วน loop ไม่รู้จบ
  */
 export function FeaturedProductsSlider({
   products,
   autoplayMs = 4500,
 }: Props) {
-  const visible = useVisibleCount();
+  const preferredVisible = useVisibleCount();
+  const visible = Math.min(preferredVisible, Math.max(products.length, 1));
   const canSlide = products.length > visible;
-  const scrollerRef = useRef<HTMLUListElement>(null);
-  const [index, setIndex] = useState(0);
+  const slidePct = 100 / visible;
+  const n = products.length;
+
+  const track = useMemo(() => {
+    if (!products.length) return [];
+    if (!canSlide) return products;
+    return [
+      ...products.slice(-visible),
+      ...products,
+      ...products.slice(0, visible),
+    ];
+  }, [products, visible, canSlide]);
+
+  const [pos, setPos] = useState(canSlide ? visible : 0);
+  const [animate, setAnimate] = useState(true);
+  const [dragPx, setDragPx] = useState(0);
   const [paused, setPaused] = useState(false);
-  const maxIndex = Math.max(0, products.length - visible);
+  const viewportRef = useRef<HTMLDivElement>(null);
+  const dragging = useRef(false);
+  const startX = useRef(0);
+  const startDrag = useRef(0);
+  const didDrag = useRef(false);
+  const posRef = useRef(pos);
+  const jumping = useRef(false);
 
-  const scrollToIndex = useCallback((next: number) => {
-    const el = scrollerRef.current;
-    if (!el || !el.children.length) return;
-    const clamped = Math.max(0, Math.min(next, products.length - 1));
-    const child = el.children[clamped] as HTMLElement | undefined;
-    if (!child) return;
-    el.scrollTo({ left: child.offsetLeft, behavior: "smooth" });
-    setIndex(Math.max(0, Math.min(clamped, maxIndex)));
-  }, [maxIndex, products.length]);
-
-  const prev = useCallback(() => {
-    scrollToIndex(Math.max(0, index - 1));
-  }, [index, scrollToIndex]);
-
-  const next = useCallback(() => {
-    const target = index >= maxIndex ? 0 : index + 1;
-    scrollToIndex(target);
-  }, [index, maxIndex, scrollToIndex]);
-
-  // Sync index from scroll position
   useEffect(() => {
-    const el = scrollerRef.current;
-    if (!el) return;
+    posRef.current = pos;
+  }, [pos]);
 
-    let ticking = false;
-    const onScroll = () => {
-      if (ticking) return;
-      ticking = true;
+  useEffect(() => {
+    setAnimate(false);
+    setPos(canSlide ? visible : 0);
+    setDragPx(0);
+    const t = window.setTimeout(() => setAnimate(true), 30);
+    return () => window.clearTimeout(t);
+  }, [visible, n, canSlide]);
+
+  const goTo = useCallback(
+    (delta: number) => {
+      if (!canSlide || dragging.current || jumping.current) return;
+      setAnimate(true);
+      setPos((p) => p + delta);
+    },
+    [canSlide],
+  );
+
+  const prev = useCallback(() => goTo(-1), [goTo]);
+  const next = useCallback(() => goTo(1), [goTo]);
+
+  // Seamless loop: jump without animation when hitting clones
+  const onTransitionEnd = useCallback(() => {
+    if (!canSlide || dragging.current) return;
+    const p = posRef.current;
+    if (p >= n + visible) {
+      jumping.current = true;
+      setAnimate(false);
+      setPos(visible + (p - (n + visible)));
       requestAnimationFrame(() => {
-        ticking = false;
-        const children = Array.from(el.children) as HTMLElement[];
-        if (!children.length) return;
-        const left = el.scrollLeft;
-        let best = 0;
-        let bestDist = Infinity;
-        children.forEach((child, i) => {
-          const dist = Math.abs(child.offsetLeft - left);
-          if (dist < bestDist) {
-            bestDist = dist;
-            best = i;
-          }
+        requestAnimationFrame(() => {
+          setAnimate(true);
+          jumping.current = false;
         });
-        setIndex(Math.max(0, Math.min(best, maxIndex)));
       });
-    };
+    } else if (p < visible) {
+      jumping.current = true;
+      setAnimate(false);
+      setPos(n + p);
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          setAnimate(true);
+          jumping.current = false;
+        });
+      });
+    }
+  }, [canSlide, n, visible]);
 
-    el.addEventListener("scroll", onScroll, { passive: true });
-    return () => el.removeEventListener("scroll", onScroll);
-  }, [maxIndex]);
-
-  // Autoplay
+  // Autoplay — always advance; clones handle wrap
   useEffect(() => {
     if (!canSlide || paused || autoplayMs <= 0) return;
     const id = window.setInterval(() => {
-      setIndex((current) => {
-        const target = current >= maxIndex ? 0 : current + 1;
-        const el = scrollerRef.current;
-        const child = el?.children[target] as HTMLElement | undefined;
-        if (el && child) {
-          el.scrollTo({ left: child.offsetLeft, behavior: "smooth" });
-        }
-        return target;
-      });
+      if (dragging.current || jumping.current) return;
+      setAnimate(true);
+      setPos((p) => p + 1);
     }, autoplayMs);
     return () => window.clearInterval(id);
-  }, [canSlide, paused, autoplayMs, maxIndex]);
+  }, [canSlide, paused, autoplayMs]);
+
+  const logicalIndex = canSlide
+    ? ((pos - visible) % n + n) % n
+    : 0;
+
+  function clientX(e: React.PointerEvent | PointerEvent) {
+    return e.clientX;
+  }
+
+  const onPointerDown = (e: React.PointerEvent) => {
+    if (!canSlide) return;
+    const target = e.target as HTMLElement;
+    if (target.closest("button, a, input")) return;
+
+    dragging.current = true;
+    didDrag.current = false;
+    startX.current = clientX(e);
+    startDrag.current = dragPx;
+    setAnimate(false);
+    setPaused(true);
+    (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+  };
+
+  const onPointerMove = (e: React.PointerEvent) => {
+    if (!dragging.current) return;
+    const dx = clientX(e) - startX.current;
+    if (Math.abs(dx) > 6) didDrag.current = true;
+    setDragPx(startDrag.current + dx);
+  };
+
+  const endDrag = (e: React.PointerEvent) => {
+    if (!dragging.current) return;
+    dragging.current = false;
+    try {
+      (e.currentTarget as HTMLElement).releasePointerCapture(e.pointerId);
+    } catch {
+      // ignore
+    }
+
+    const width = viewportRef.current?.offsetWidth ?? 1;
+    const slideWidth = width / visible;
+    const steps = Math.round(-dragPx / slideWidth);
+
+    setAnimate(true);
+    setDragPx(0);
+    setPaused(false);
+
+    if (steps !== 0) {
+      setPos((p) => p + steps);
+    }
+  };
+
+  const onClickCapture = (e: React.MouseEvent) => {
+    if (didDrag.current) {
+      e.preventDefault();
+      e.stopPropagation();
+      didDrag.current = false;
+    }
+  };
 
   if (!products.length) {
     return (
@@ -116,6 +196,8 @@ export function FeaturedProductsSlider({
       </p>
     );
   }
+
+  const translatePct = pos * slidePct;
 
   return (
     <div
@@ -144,35 +226,50 @@ export function FeaturedProductsSlider({
         </>
       ) : null}
 
-      <ul
-        ref={scrollerRef}
-        className={`flex list-none gap-0 overflow-x-auto scroll-smooth [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden ${
-          canSlide ? "cursor-grab active:cursor-grabbing snap-x snap-mandatory" : ""
-        }`}
+      <div
+        ref={viewportRef}
+        className="overflow-hidden touch-pan-y"
+        onPointerDown={onPointerDown}
+        onPointerMove={onPointerMove}
+        onPointerUp={endDrag}
+        onPointerCancel={endDrag}
+        onClickCapture={onClickCapture}
       >
-        {products.map((product) => (
-          <li
-            key={product.id}
-            className="shrink-0 snap-start select-none px-2 sm:px-3"
-            style={{
-              width: `${100 / visible}%`,
-            }}
-          >
-            <ProductCard product={product} />
-          </li>
-        ))}
-      </ul>
+        <ul
+          className={`flex list-none ${animate ? "transition-transform duration-500 ease-out" : ""} ${
+            canSlide ? "cursor-grab active:cursor-grabbing" : ""
+          }`}
+          style={{
+            transform: `translateX(calc(-${translatePct}% + ${dragPx}px))`,
+          }}
+          onTransitionEnd={onTransitionEnd}
+        >
+          {track.map((product, i) => (
+            <li
+              key={`${product.id}-${i}`}
+              className="shrink-0 select-none px-2 sm:px-3"
+              style={{ width: `${slidePct}%` }}
+            >
+              <ProductCard product={product} />
+            </li>
+          ))}
+        </ul>
+      </div>
 
       {canSlide ? (
         <div className="mt-6 flex justify-center gap-2">
-          {Array.from({ length: maxIndex + 1 }).map((_, i) => (
+          {products.map((p, i) => (
             <button
-              key={i}
+              key={p.id}
               type="button"
-              aria-label={`ไปหน้า ${i + 1}`}
-              onClick={() => scrollToIndex(i)}
+              aria-label={`ไปสินค้า ${i + 1}`}
+              onClick={() => {
+                if (jumping.current) return;
+                setAnimate(true);
+                setPos(visible + i);
+              }}
               className={`h-2 rounded-full transition ${
-                i === index
+                i === logicalIndex
                   ? "w-6 bg-primary"
                   : "w-2 bg-primary/25 hover:bg-primary/50"
               }`}
