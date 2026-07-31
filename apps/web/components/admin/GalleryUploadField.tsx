@@ -2,6 +2,7 @@
 
 import { useRef, useState } from "react";
 import { getAdminToken } from "@/lib/admin-api";
+import { getAdminMediaEndpoint } from "@/lib/admin-media";
 import { toPublicMediaUrl } from "@/lib/media";
 
 type Props = {
@@ -33,17 +34,20 @@ export function GalleryUploadField({
         const body = new FormData();
         body.append("file", file);
         body.append("collection", collection);
-        const res = await fetch("/api/v1/admin/media", {
+        if (!token) throw new Error("กรุณาเข้าสู่ระบบ Admin ใหม่");
+        const res = await fetch(getAdminMediaEndpoint(), {
           method: "POST",
           headers: {
             Accept: "application/json",
-            ...(token ? { Authorization: `Bearer ${token}` } : {}),
+            Authorization: `Bearer ${token}`,
           },
           body,
         });
-        const json = await res.json();
+        const json = await res.json().catch(() => ({}));
         if (!res.ok) {
-          throw new Error(json.message || "อัปโหลดไม่สำเร็จ");
+          throw new Error(
+            json.message || `อัปโหลดไม่สำเร็จ (${res.status})`,
+          );
         }
         next.push(toPublicMediaUrl(String(json.data.url)));
       }

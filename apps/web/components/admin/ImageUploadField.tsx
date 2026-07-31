@@ -1,7 +1,11 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { getAdminToken } from "@/lib/admin-api";
+import {
+  getAdminMediaEndpoint,
+  isDeadLocalMediaUrl,
+} from "@/lib/admin-media";
 import { toPublicMediaUrl } from "@/lib/media";
 
 type Props = {
@@ -20,34 +24,79 @@ export function ImageUploadField({
   const inputRef = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [localPreview, setLocalPreview] = useState<string | null>(null);
+  const [broken, setBroken] = useState(false);
+  const clearedDead = useRef(false);
+
+  // Clear dead /storage/... URLs left after Render redeploys (once)
+  useEffect(() => {
+    if (isDeadLocalMediaUrl(value) && !clearedDead.current) {
+      clearedDead.current = true;
+      onChange("");
+      setBroken(false);
+      return;
+    }
+    if (!isDeadLocalMediaUrl(value)) {
+      clearedDead.current = false;
+      setBroken(false);
+    }
+  }, [value, onChange]);
+
+  useEffect(() => {
+    return () => {
+      if (localPreview) URL.revokeObjectURL(localPreview);
+    };
+  }, [localPreview]);
 
   async function onFileChange(file: File | null) {
     if (!file) return;
+
+    if (file.size > 10 * 1024 * 1024) {
+      setError("ไฟล์ใหญ่เกิน 10MB");
+      return;
+    }
+
+    if (localPreview) URL.revokeObjectURL(localPreview);
+    const objectUrl = URL.createObjectURL(file);
+    setLocalPreview(objectUrl);
     setUploading(true);
     setError(null);
+    setBroken(false);
+
     try {
       const token = getAdminToken();
+      if (!token) {
+        throw new Error("กรุณาเข้าสู่ระบบ Admin ใหม่");
+      }
+
       const body = new FormData();
       body.append("file", file);
       body.append("collection", collection);
 
-      const res = await fetch("/api/v1/admin/media", {
+      const res = await fetch(getAdminMediaEndpoint(), {
         method: "POST",
         headers: {
           Accept: "application/json",
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          Authorization: `Bearer ${token}`,
         },
         body,
       });
-      const json = await res.json();
+      const json = await res.json().catch(() => ({}));
       if (!res.ok) {
         const msg =
           json.message ||
           (json.errors?.file ? json.errors.file.join(", ") : null) ||
-          "อัปโหลดไม่สำเร็จ";
+          `อัปโหลดไม่สำเร็จ (${res.status})`;
         throw new Error(msg);
       }
-      onChange(toPublicMediaUrl(String(json.data.url)));
+
+      const url = toPublicMediaUrl(String(json.data?.url ?? ""));
+      if (!url) {
+        throw new Error("อัปโหลดสำเร็จ แต่ไม่ได้รับ URL รูป");
+      }
+      onChange(url);
+      URL.revokeObjectURL(objectUrl);
+      setLocalPreview(null);
     } catch (e) {
       setError(e instanceof Error ? e.message : "อัปโหลดไม่สำเร็จ");
     } finally {
@@ -56,7 +105,10 @@ export function ImageUploadField({
     }
   }
 
-  const preview = toPublicMediaUrl(value) || value;
+  const remote = !isDeadLocalMediaUrl(value)
+    ? toPublicMediaUrl(value) || value
+    : "";
+  const preview = localPreview || (!broken ? remote : "");
 
   return (
     <div>
@@ -68,6 +120,9 @@ export function ImageUploadField({
             src={preview}
             alt="preview"
             className="h-36 w-full rounded-lg object-cover"
+            onError={() => {
+              if (!localPreview) setBroken(true);
+            }}
           />
         ) : (
           <div className="flex h-28 items-center justify-center text-xs text-slate-400">
@@ -84,10 +139,16 @@ export function ImageUploadField({
           >
             {uploading ? "กำลังอัปโหลด..." : "เลือกรูปจากเครื่อง"}
           </button>
-          {value ? (
+          {value || localPreview ? (
             <button
               type="button"
-              onClick={() => onChange("")}
+              onClick={() => {
+                if (localPreview) URL.revokeObjectURL(localPreview);
+                setLocalPreview(null);
+                onChange("");
+                setBroken(false);
+                setError(null);
+              }}
               className="rounded-lg bg-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-700"
             >
               ลบรูป
@@ -104,7 +165,7 @@ export function ImageUploadField({
         />
 
         <p className="text-[10px] text-slate-400">
-          รองรับ JPG, PNG, WEBP · สูงสุด 10MB
+          รองรับ JPG, PNG, WEBP · สูงสุด 10MB · เก็บบน Supabase Storage
         </p>
         {error ? <p className="text-xs text-red-600">{error}</p> : null}
       </div>
