@@ -1,3 +1,5 @@
+import { toPublicMediaUrl } from "@/lib/media";
+
 export type Product = {
   id: number;
   slug: string;
@@ -82,6 +84,48 @@ export function getApiBase(isServer = false): string {
   return "/api/v1/public";
 }
 
+function withAbsoluteMedia(product: Product): Product {
+  return {
+    ...product,
+    image_url: product.image_url
+      ? toPublicMediaUrl(product.image_url) || product.image_url
+      : product.image_url,
+    gallery_images: Array.isArray(product.gallery_images)
+      ? product.gallery_images.map((u) =>
+          typeof u === "string" ? toPublicMediaUrl(u) || u : u,
+        )
+      : product.gallery_images,
+  };
+}
+
+function withAbsoluteHome(data: HomePayload): HomePayload {
+  const sections: Record<string, SiteSection> = {};
+  for (const [key, section] of Object.entries(data.sections ?? {})) {
+    sections[key] = {
+      ...section,
+      image_url: section.image_url
+        ? toPublicMediaUrl(section.image_url) || section.image_url
+        : section.image_url,
+    };
+  }
+
+  return {
+    ...data,
+    sections,
+    featured_products: (data.featured_products ?? []).map(withAbsoluteMedia),
+    hot_products: (data.hot_products ?? []).map(withAbsoluteMedia),
+    hero_slides: (data.hero_slides ?? []).map((slide) => ({
+      ...slide,
+      image_url: slide.image_url
+        ? toPublicMediaUrl(slide.image_url) || slide.image_url
+        : slide.image_url,
+      video_url: slide.video_url
+        ? toPublicMediaUrl(slide.video_url) || slide.video_url
+        : slide.video_url,
+    })),
+  };
+}
+
 export async function fetchHome(): Promise<HomePayload> {
   try {
     const res = await fetch(`${getApiBase(true)}/home`, {
@@ -91,7 +135,7 @@ export async function fetchHome(): Promise<HomePayload> {
       return { sections: {}, featured_products: [], hot_products: [], hero_slides: [] };
     }
     const json = (await res.json()) as { data: HomePayload };
-    return json.data;
+    return withAbsoluteHome(json.data);
   } catch {
     return { sections: {}, featured_products: [], hot_products: [], hero_slides: [] };
   }
@@ -100,13 +144,13 @@ export async function fetchHome(): Promise<HomePayload> {
 export async function fetchProducts(): Promise<Product[]> {
   try {
     const res = await fetch(`${getApiBase(true)}/products`, {
-      next: { revalidate: 60 },
+      cache: "no-store",
     });
     if (!res.ok) {
       return [];
     }
     const json = (await res.json()) as { data: Product[] };
-    return json.data;
+    return (json.data ?? []).map(withAbsoluteMedia);
   } catch {
     return [];
   }
@@ -115,13 +159,13 @@ export async function fetchProducts(): Promise<Product[]> {
 export async function fetchProduct(slug: string): Promise<Product | null> {
   try {
     const res = await fetch(`${getApiBase(true)}/products/${slug}`, {
-      next: { revalidate: 60 },
+      cache: "no-store",
     });
     if (!res.ok) {
       return null;
     }
     const json = (await res.json()) as { data: Product };
-    return json.data;
+    return withAbsoluteMedia(json.data);
   } catch {
     return null;
   }
@@ -153,8 +197,9 @@ export async function fetchBranding(): Promise<{
         brand_mode: string;
       };
     };
+    const logo = json.data.logo_url ?? null;
     return {
-      logo_url: json.data.logo_url ?? null,
+      logo_url: logo ? toPublicMediaUrl(logo) || logo : null,
       brand_primary: json.data.brand_primary || "AuraGold",
       brand_accent: json.data.brand_accent || "Durian",
       brand_mode: json.data.brand_mode || "text",

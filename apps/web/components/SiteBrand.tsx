@@ -64,7 +64,15 @@ export function BrandingProvider({
       .then((r) => r.json())
       .then((json) => {
         if (!cancelled && json?.data) {
-          setBranding(normalizeBranding(json.data));
+          const raw = json.data as Partial<Branding>;
+          setBranding(
+            normalizeBranding({
+              ...raw,
+              logo_url: raw.logo_url
+                ? toPublicMediaUrl(raw.logo_url) || raw.logo_url
+                : raw.logo_url ?? null,
+            }),
+          );
         }
       })
       .catch(() => undefined);
