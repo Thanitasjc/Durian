@@ -85,7 +85,7 @@ export function getApiBase(isServer = false): string {
 export async function fetchHome(): Promise<HomePayload> {
   try {
     const res = await fetch(`${getApiBase(true)}/home`, {
-      next: { revalidate: 30 },
+      cache: "no-store",
     });
     if (!res.ok) {
       return { sections: {}, featured_products: [], hot_products: [], hero_slides: [] };

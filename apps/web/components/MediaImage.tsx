@@ -14,8 +14,8 @@ type Props = {
 };
 
 /**
- * Use plain <img> for Laravel /storage files (Next image optimizer blocks 127.0.0.1).
- * Use next/image for remote CDNs (e.g. Unsplash).
+ * Use plain <img> for Laravel /storage/uploads files.
+ * Use next/image for remote CDNs (Supabase / Unsplash).
  */
 export function MediaImage({
   src,
@@ -29,7 +29,14 @@ export function MediaImage({
   const url = toPublicMediaUrl(src);
   if (!url) return null;
 
-  if (isLocalStorageUrl(url) || url.startsWith("/")) {
+  // Absolute http(s) or expanded Supabase → next/image
+  // Only bare Laravel /storage/uploads → plain img via rewrite
+  const usePlainImg =
+    isLocalStorageUrl(url) &&
+    !url.startsWith("http") &&
+    !url.includes("/storage/v1/");
+
+  if (usePlainImg) {
     if (fill) {
       return (
         // eslint-disable-next-line @next/next/no-img-element

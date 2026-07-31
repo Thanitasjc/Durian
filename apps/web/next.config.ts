@@ -7,6 +7,7 @@ const supabaseHost =
 const supabaseStorageHost =
   process.env.NEXT_PUBLIC_SUPABASE_STORAGE_HOST ??
   "anefnlhwarioumxdyrpa.storage.supabase.co";
+const supabasePublic = `https://${supabaseHost}`;
 
 const nextConfig: NextConfig = {
   images: {
@@ -29,6 +30,11 @@ const nextConfig: NextConfig = {
       {
         source: "/api/:path*",
         destination: `${apiUrl}/api/:path*`,
+      },
+      // Supabase public objects saved as relative /storage/v1/... must NOT hit Laravel
+      {
+        source: "/storage/v1/:path*",
+        destination: `${supabasePublic}/storage/v1/:path*`,
       },
       {
         source: "/storage/:path*",
