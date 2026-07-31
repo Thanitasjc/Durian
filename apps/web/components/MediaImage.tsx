@@ -14,8 +14,8 @@ type Props = {
 };
 
 /**
- * Use plain <img> for Laravel /storage/uploads files.
- * Use next/image for remote CDNs (Supabase / Unsplash).
+ * Supabase & local disk → plain <img>.
+ * Other remotes (Unsplash) → next/image.
  */
 export function MediaImage({
   src,
@@ -29,12 +29,10 @@ export function MediaImage({
   const url = toPublicMediaUrl(src);
   if (!url) return null;
 
-  // Absolute http(s) or expanded Supabase → next/image
-  // Only bare Laravel /storage/uploads → plain img via rewrite
   const usePlainImg =
-    isLocalStorageUrl(url) &&
-    !url.startsWith("http") &&
-    !url.includes("/storage/v1/");
+    isLocalStorageUrl(url) ||
+    url.includes(".supabase.co/") ||
+    url.startsWith("/storage/");
 
   if (usePlainImg) {
     if (fill) {

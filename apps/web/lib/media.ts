@@ -1,57 +1,57 @@
 /**
  * Normalize media URLs for the Next.js app.
- * - Laravel local disk: /storage/uploads/... (proxied to API)
- * - Supabase Storage absolute URLs: keep as-is
- * - Accidental relative Supabase paths: /storage/v1/... → absolute host
+ * Always expand Supabase public object paths to an absolute host.
  */
-const SUPABASE_PUBLIC_HOST =
-  process.env.NEXT_PUBLIC_SUPABASE_HOST ?? "anefnlhwarioumxdyrpa.supabase.co";
+
+const SUPABASE_PUBLIC_ORIGIN =
+  "https://anefnlhwarioumxdyrpa.supabase.co";
 
 export function toPublicMediaUrl(url: string | null | undefined): string {
   if (!url) return "";
-  const trimmed = url.trim();
+  let trimmed = url.trim();
   if (!trimmed) return "";
 
-  // Relative Supabase public object path (missing host) — fix it
-  if (trimmed.startsWith("/storage/v1/object/public/")) {
-    return `https://${SUPABASE_PUBLIC_HOST}${trimmed}`;
-  }
-
-  // Laravel local public disk (NOT Supabase)
-  if (trimmed.startsWith("/storage/uploads/") || trimmed === "/storage") {
-    return trimmed;
-  }
-  if (trimmed.startsWith("/storage/") && !trimmed.startsWith("/storage/v1/")) {
-    return trimmed;
-  }
-
+  // Same-origin / absolute URL whose path is a Supabase public object
   try {
-    const parsed = new URL(trimmed);
-    const host = parsed.hostname;
+    const parsed = new URL(trimmed, SUPABASE_PUBLIC_ORIGIN);
+    if (parsed.pathname.startsWith("/storage/v1/object/public/")) {
+      // Force Supabase host (covers relative, vercel.app, localhost, etc.)
+      return `${SUPABASE_PUBLIC_ORIGIN}${parsed.pathname}${parsed.search}`;
+    }
 
     // Collapse localhost Laravel URLs for next/image
     if (
-      (host === "127.0.0.1" || host === "localhost") &&
-      parsed.pathname.startsWith("/storage/") &&
-      !parsed.pathname.startsWith("/storage/v1/")
+      (parsed.hostname === "127.0.0.1" || parsed.hostname === "localhost") &&
+      parsed.pathname.startsWith("/storage/")
     ) {
       return `${parsed.pathname}${parsed.search}`;
     }
 
-    // Already absolute (Supabase / Unsplash / S3) — keep
-    return trimmed;
+    if (trimmed.startsWith("http://") || trimmed.startsWith("https://")) {
+      return trimmed;
+    }
   } catch {
+    // fall through
+  }
+
+  // Relative Supabase path
+  if (trimmed.startsWith("/storage/v1/object/public/")) {
+    return `${SUPABASE_PUBLIC_ORIGIN}${trimmed}`;
+  }
+
+  // Laravel local public disk
+  if (trimmed.startsWith("/storage/")) {
     return trimmed;
   }
+
+  return trimmed;
 }
 
 export function isLocalStorageUrl(url: string): boolean {
   const normalized = toPublicMediaUrl(url);
-  // Only true Laravel local disk paths (after normalization Supabase is absolute)
   return (
-    normalized.startsWith("/storage/uploads/") ||
-    (normalized.startsWith("/storage/") &&
-      !normalized.startsWith("/storage/v1/") &&
-      !normalized.startsWith("http"))
+    normalized.startsWith("/storage/") &&
+    !normalized.startsWith("/storage/v1/") &&
+    !normalized.startsWith("http")
   );
 }
