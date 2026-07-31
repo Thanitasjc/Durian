@@ -7,6 +7,7 @@ use App\Models\HeroSlide;
 use App\Models\Product;
 use App\Models\SiteSection;
 use App\Services\StockService;
+use App\Support\MediaUrl;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Collection;
 
@@ -44,11 +45,25 @@ class HomeController extends Controller
             ->active()
             ->orderBy('sort_order')
             ->orderBy('id')
-            ->get();
+            ->get()
+            ->map(function (HeroSlide $slide) {
+                $data = $slide->toArray();
+                $data['image_url'] = MediaUrl::absolute($slide->image_url);
+                if (array_key_exists('video_url', $data)) {
+                    $data['video_url'] = MediaUrl::absolute($slide->video_url);
+                }
+
+                return $data;
+            });
 
         return response()->json([
             'data' => [
-                'sections' => $sections,
+                'sections' => $sections->map(function (SiteSection $section) {
+                    $data = $section->toArray();
+                    $data['image_url'] = MediaUrl::absolute($section->image_url);
+
+                    return $data;
+                }),
                 'featured_products' => $this->withStock($featuredProducts),
                 'hot_products' => $this->withStock($hotProducts),
                 'hero_slides' => $heroSlides,
@@ -60,6 +75,13 @@ class HomeController extends Controller
     {
         return $products->map(function (Product $product) {
             $data = $product->toArray();
+            $data['image_url'] = MediaUrl::absolute($product->image_url);
+            if (is_array($product->gallery_images)) {
+                $data['gallery_images'] = array_map(
+                    fn ($u) => is_string($u) ? MediaUrl::absolute($u) : $u,
+                    $product->gallery_images,
+                );
+            }
             $data['stock_qty'] = $this->stock->availableUnits($product);
 
             return $data;

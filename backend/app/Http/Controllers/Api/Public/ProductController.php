@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api\Public;
 use App\Http\Controllers\Controller;
 use App\Models\Product;
 use App\Services\StockService;
+use App\Support\MediaUrl;
 use Illuminate\Http\JsonResponse;
 
 class ProductController extends Controller
@@ -38,6 +39,13 @@ class ProductController extends Controller
     private function withStock(Product $product): array
     {
         $data = $product->toArray();
+        $data['image_url'] = MediaUrl::absolute($product->image_url);
+        if (is_array($product->gallery_images)) {
+            $data['gallery_images'] = array_map(
+                fn ($u) => is_string($u) ? MediaUrl::absolute($u) : $u,
+                $product->gallery_images,
+            );
+        }
         $data['stock_qty'] = $this->stock->availableUnits($product);
         $data['inventory_qty'] = $product->inventoryItem
             ? (float) $product->inventoryItem->quantity
