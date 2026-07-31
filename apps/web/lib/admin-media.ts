@@ -26,9 +26,20 @@ export function getAdminMediaEndpoint(): string {
   return "/api/v1/admin/media";
 }
 
-/** Old Render-disk paths that no longer exist after redeploy */
+/**
+ * Old Render-disk paths that no longer exist after redeploy.
+ * Do NOT treat Supabase `/storage/v1/...` (or absolute supabase URLs) as dead.
+ */
 export function isDeadLocalMediaUrl(url: string | null | undefined): boolean {
   if (!url) return false;
   const u = url.trim();
-  return u.startsWith("/storage/") || /https?:\/\/[^/]+\/storage\//.test(u);
+  if (u.startsWith("/storage/v1/")) return false;
+  if (u.includes(".supabase.co/storage/")) return false;
+  if (u.includes("storage.supabase.co")) return false;
+  // Laravel public disk only
+  return (
+    u.startsWith("/storage/uploads/") ||
+    /^https?:\/\/(127\.0\.0\.1|localhost)(:\d+)?\/storage\//.test(u) ||
+    /^https?:\/\/[^/]*onrender\.com\/storage\//.test(u)
+  );
 }
