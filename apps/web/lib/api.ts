@@ -83,36 +83,48 @@ export function getApiBase(isServer = false): string {
 }
 
 export async function fetchHome(): Promise<HomePayload> {
-  const res = await fetch(`${getApiBase(true)}/home`, {
-    next: { revalidate: 30 },
-  });
-  if (!res.ok) {
+  try {
+    const res = await fetch(`${getApiBase(true)}/home`, {
+      next: { revalidate: 30 },
+    });
+    if (!res.ok) {
+      return { sections: {}, featured_products: [], hot_products: [], hero_slides: [] };
+    }
+    const json = (await res.json()) as { data: HomePayload };
+    return json.data;
+  } catch {
     return { sections: {}, featured_products: [], hot_products: [], hero_slides: [] };
   }
-  const json = (await res.json()) as { data: HomePayload };
-  return json.data;
 }
 
 export async function fetchProducts(): Promise<Product[]> {
-  const res = await fetch(`${getApiBase(true)}/products`, {
-    next: { revalidate: 60 },
-  });
-  if (!res.ok) {
+  try {
+    const res = await fetch(`${getApiBase(true)}/products`, {
+      next: { revalidate: 60 },
+    });
+    if (!res.ok) {
+      return [];
+    }
+    const json = (await res.json()) as { data: Product[] };
+    return json.data;
+  } catch {
     return [];
   }
-  const json = (await res.json()) as { data: Product[] };
-  return json.data;
 }
 
 export async function fetchProduct(slug: string): Promise<Product | null> {
-  const res = await fetch(`${getApiBase(true)}/products/${slug}`, {
-    next: { revalidate: 60 },
-  });
-  if (!res.ok) {
+  try {
+    const res = await fetch(`${getApiBase(true)}/products/${slug}`, {
+      next: { revalidate: 60 },
+    });
+    if (!res.ok) {
+      return null;
+    }
+    const json = (await res.json()) as { data: Product };
+    return json.data;
+  } catch {
     return null;
   }
-  const json = (await res.json()) as { data: Product };
-  return json.data;
 }
 
 export async function fetchBranding(): Promise<{
