@@ -1,7 +1,13 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import type { HeroSlide as ApiHeroSlide, SiteSection } from "@/lib/api";
 import { toPublicMediaUrl } from "@/lib/media";
 
@@ -202,8 +208,22 @@ export function HeroBanner({
   const list = useMemo(() => normalizeSlides(slides, hero), [slides, hero]);
   const [index, setIndex] = useState(0);
   const [paused, setPaused] = useState(false);
+  const [dragPx, setDragPx] = useState(0);
+  const [draggingUi, setDraggingUi] = useState(false);
+
+  const viewportRef = useRef<HTMLElement>(null);
+  const dragging = useRef(false);
+  const startX = useRef(0);
+  const dragPxRef = useRef(0);
+  const didDrag = useRef(false);
+  const indexRef = useRef(0);
+  const canSwipe = list.length > 1;
 
   const activeHasVideo = Boolean(list[index]?.video_url);
+
+  useEffect(() => {
+    indexRef.current = index;
+  }, [index]);
 
   const go = useCallback(
     (next: number) => {
@@ -215,10 +235,72 @@ export function HeroBanner({
   );
 
   useEffect(() => {
-    if (paused || list.length < 2 || activeHasVideo) return;
+    if (paused || draggingUi || list.length < 2 || activeHasVideo) return;
     const id = window.setInterval(() => go(index + 1), intervalMs);
     return () => window.clearInterval(id);
-  }, [activeHasVideo, go, index, intervalMs, list.length, paused]);
+  }, [
+    activeHasVideo,
+    draggingUi,
+    go,
+    index,
+    intervalMs,
+    list.length,
+    paused,
+  ]);
+
+  const onPointerDown = (e: React.PointerEvent) => {
+    if (!canSwipe) return;
+    const target = e.target as HTMLElement;
+    if (target.closest("button, a, input, textarea, select")) return;
+
+    dragging.current = true;
+    didDrag.current = false;
+    startX.current = e.clientX;
+    dragPxRef.current = 0;
+    setDraggingUi(true);
+    setPaused(true);
+    setDragPx(0);
+    (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+  };
+
+  const onPointerMove = (e: React.PointerEvent) => {
+    if (!dragging.current) return;
+    const dx = e.clientX - startX.current;
+    if (Math.abs(dx) > 8) didDrag.current = true;
+    dragPxRef.current = dx;
+    setDragPx(dx);
+  };
+
+  const endDrag = (e: React.PointerEvent) => {
+    if (!dragging.current) return;
+    dragging.current = false;
+    try {
+      (e.currentTarget as HTMLElement).releasePointerCapture(e.pointerId);
+    } catch {
+      // ignore
+    }
+
+    const width = viewportRef.current?.offsetWidth ?? 1;
+    const threshold = Math.max(56, width * 0.14);
+    const dx = dragPxRef.current;
+
+    dragPxRef.current = 0;
+    setDraggingUi(false);
+    setDragPx(0);
+    setPaused(false);
+
+    if (Math.abs(dx) >= threshold) {
+      go(dx < 0 ? indexRef.current + 1 : indexRef.current - 1);
+    }
+  };
+
+  const onClickCapture = (e: React.MouseEvent) => {
+    if (didDrag.current) {
+      e.preventDefault();
+      e.stopPropagation();
+      didDrag.current = false;
+    }
+  };
 
   if (!list.length) {
     return null;
@@ -227,25 +309,45 @@ export function HeroBanner({
   return (
     <section
       id="hero"
-      className="group relative w-full overflow-hidden bg-primary"
+      ref={viewportRef}
+      className={`group relative w-full overflow-hidden bg-primary touch-pan-y ${
+        canSwipe ? "cursor-grab active:cursor-grabbing select-none" : ""
+      }`}
       onMouseEnter={() => setPaused(true)}
-      onMouseLeave={() => setPaused(false)}
+      onMouseLeave={() => {
+        if (!dragging.current) setPaused(false);
+      }}
+      onPointerDown={onPointerDown}
+      onPointerMove={onPointerMove}
+      onPointerUp={endDrag}
+      onPointerCancel={endDrag}
+      onClickCapture={onClickCapture}
     >
       {list.map((slide, i) => {
         const active = i === index;
+        const dragShift = active && draggingUi ? dragPx : 0;
         return (
           <div
             key={`${slide.image_url || ""}-${slide.video_url || ""}-${i}`}
-            className={`w-full transition-opacity duration-500 ease-out ${
+            className={`w-full ${
+              draggingUi && active
+                ? ""
+                : "transition-[opacity,transform] duration-500 ease-out"
+            } ${
               active
                 ? "relative z-10 opacity-100"
                 : "pointer-events-none absolute inset-x-0 top-0 z-0 opacity-0"
             }`}
+            style={
+              dragShift
+                ? { transform: `translate3d(${dragShift}px, 0, 0)` }
+                : undefined
+            }
             aria-hidden={!active}
           >
             <div className="relative w-full">
               <SlideMedia slide={slide} active={active} />
-              <div className="absolute inset-0 bg-gradient-to-r from-primary/75 via-primary/35 to-transparent" />
+              <div className="pointer-events-none absolute inset-0 bg-gradient-to-r from-primary/75 via-primary/35 to-transparent" />
               <div className="absolute inset-0 z-20 flex flex-col items-start justify-center gap-3 px-5 py-10 text-left md:gap-4 md:px-12 md:py-12 lg:px-20">
                 <div className="w-full max-w-7xl">
                   {slide.eyebrow ? (
