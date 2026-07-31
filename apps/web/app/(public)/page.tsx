@@ -5,6 +5,8 @@ import { HotProductsSection } from "@/components/HotProductsSection";
 import { MediaImage } from "@/components/MediaImage";
 import { fetchHome, type SiteSection } from "@/lib/api";
 
+export const dynamic = "force-dynamic";
+
 function sectionOf(
   sections: Record<string, SiteSection>,
   key: string,

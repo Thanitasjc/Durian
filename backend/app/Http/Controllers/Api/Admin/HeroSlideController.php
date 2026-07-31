@@ -50,7 +50,7 @@ class HeroSlideController extends Controller
             'subtitle' => ['nullable', 'string', 'max:180'],
             'eyebrow' => ['nullable', 'string', 'max:120'],
             'body' => ['nullable', 'string'],
-            'image_url' => ['nullable', 'string', 'max:500'],
+            'image_url' => ['nullable', 'string', 'max:1000'],
             'video_url' => ['nullable', 'string', 'max:500'],
             'cta_label' => ['nullable', 'string', 'max:80'],
             'cta_link' => ['nullable', 'string', 'max:255'],

@@ -82,7 +82,7 @@ class ProductController extends Controller
             'stock_qty' => ['nullable', 'integer', 'min:0'],
             'inventory_item_id' => ['nullable', 'integer', 'exists:inventory_items,id'],
             'weight_kg' => ['nullable', 'numeric', 'min:0'],
-            'image_url' => ['nullable', 'string', 'max:500'],
+            'image_url' => ['nullable', 'string', 'max:1000'],
             'gallery_images' => ['nullable'],
             'rating' => ['nullable', 'numeric'],
             'review_count' => ['nullable', 'integer'],

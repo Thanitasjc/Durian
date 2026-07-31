@@ -9,6 +9,8 @@ import { CartProvider } from "@/lib/cart";
 import { CompareProvider } from "@/lib/compare";
 import { WishlistProvider } from "@/lib/wishlist";
 
+export const dynamic = "force-dynamic";
+
 export default async function PublicLayout({
   children,
 }: {

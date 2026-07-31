@@ -55,7 +55,7 @@ class SiteSectionController extends Controller
             'eyebrow' => ['nullable', 'string', 'max:120'],
             'subtitle' => ['nullable', 'string'],
             'body' => ['nullable', 'string'],
-            'image_url' => ['nullable', 'string', 'max:500'],
+            'image_url' => ['nullable', 'string', 'max:1000'],
             'cta_label' => ['nullable', 'string', 'max:120'],
             'cta_link' => ['nullable', 'string', 'max:255'],
             'cta_label_2' => ['nullable', 'string', 'max:120'],
