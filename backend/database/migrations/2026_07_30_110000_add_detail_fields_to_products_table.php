@@ -1,0 +1,32 @@
+<?php
+
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
+
+return new class extends Migration
+{
+    public function up(): void
+    {
+        Schema::table('products', function (Blueprint $table) {
+            $table->unsignedInteger('stock_qty')->nullable()->after('unit');
+            $table->decimal('weight_kg', 8, 2)->nullable()->after('stock_qty');
+            $table->string('tagline', 255)->nullable()->after('description');
+            $table->string('seller_name', 180)->nullable()->after('tagline');
+            $table->string('seller_phone', 40)->nullable()->after('seller_name');
+        });
+    }
+
+    public function down(): void
+    {
+        Schema::table('products', function (Blueprint $table) {
+            $table->dropColumn([
+                'stock_qty',
+                'weight_kg',
+                'tagline',
+                'seller_name',
+                'seller_phone',
+            ]);
+        });
+    }
+};

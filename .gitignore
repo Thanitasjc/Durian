@@ -1,0 +1,35 @@
+# Dependencies
+node_modules/
+vendor/
+
+# Env / secrets
+.env
+.env.*
+!.env.example
+backend/.env
+apps/web/.env.local
+apps/web/.env*.local
+
+# Next.js
+apps/web/.next/
+apps/web/out/
+
+# Laravel
+backend/storage/logs/*
+backend/storage/framework/cache/*
+backend/storage/framework/sessions/*
+backend/storage/framework/views/*
+backend/bootstrap/cache/*.php
+!backend/bootstrap/cache/.gitignore
+!backend/storage/logs/.gitignore
+*.sqlite
+
+# OS / IDE
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.log
+
+# Vercel
+.vercel/

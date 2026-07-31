@@ -1,0 +1,56 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 750" width="1200" height="750">
+  <defs>
+    <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#9ec9a3"/>
+      <stop offset="100%" stop-color="#6f9f6a"/>
+    </linearGradient>
+    <pattern id="trees" width="48" height="48" patternUnits="userSpaceOnUse">
+      <circle cx="24" cy="24" r="10" fill="#2f6b2a" opacity="0.85"/>
+      <circle cx="24" cy="22" r="5" fill="#4f9a45" opacity="0.9"/>
+    </pattern>
+    <filter id="soft" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="2" stdDeviation="3" flood-opacity="0.25"/>
+    </filter>
+  </defs>
+
+  <!-- Base field -->
+  <rect width="1200" height="750" fill="url(#sky)"/>
+  <rect x="40" y="40" width="1120" height="670" rx="28" fill="#5f8f4f"/>
+  <rect x="60" y="60" width="1080" height="630" rx="22" fill="url(#trees)" opacity="0.55"/>
+  <rect x="60" y="60" width="1080" height="630" rx="22" fill="#3d6e38" opacity="0.18"/>
+
+  <!-- Roads / irrigation lines -->
+  <g stroke="#d9e7d4" stroke-width="10" stroke-linecap="round" opacity="0.7">
+    <path d="M80 220 H1120"/>
+    <path d="M80 420 H1120"/>
+    <path d="M80 600 H1120"/>
+    <path d="M320 80 V670"/>
+    <path d="M620 80 V670"/>
+    <path d="M920 80 V670"/>
+  </g>
+  <g stroke="#7ec8ff" stroke-width="3" stroke-dasharray="10 8" opacity="0.65">
+    <path d="M100 240 H1100"/>
+    <path d="M100 440 H1100"/>
+    <path d="M340 100 V650"/>
+    <path d="M640 100 V650"/>
+    <path d="M940 100 V650"/>
+  </g>
+
+  <!-- Section labels on map -->
+  <g font-family="Arial, sans-serif" font-weight="700" fill="#154212" opacity="0.55">
+    <text x="170" y="150" font-size="28">Section A</text>
+    <text x="470" y="150" font-size="28">Section B</text>
+    <text x="770" y="150" font-size="28">Section C</text>
+    <text x="170" y="350" font-size="28">Section D</text>
+    <text x="470" y="350" font-size="28">Section E</text>
+    <text x="770" y="350" font-size="28">Section F</text>
+  </g>
+
+  <!-- Decorative orchard title badge -->
+  <g filter="url(#soft)">
+    <rect x="40" y="680" width="320" height="46" rx="14" fill="#154212"/>
+    <text x="60" y="710" font-family="Arial, sans-serif" font-size="18" font-weight="700" fill="#fff">
+      AuraGold Sample Orchard Map
+    </text>
+  </g>
+</svg>
