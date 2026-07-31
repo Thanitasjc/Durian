@@ -82,17 +82,25 @@ NEXT_PUBLIC_GOOGLE_MAPS_API_KEY=AIzaSy...your_real_key
 
 ### Backend database (Supabase)
 
-1. Login as `thparkin.pl@gmail.com` → create **Access Token**:  
-   https://supabase.com/dashboard/account/tokens
-2. PowerShell:
+- Project: **auragold-durian** (org AuraGold Durian)  
+- Dashboard: https://supabase.com/dashboard/project/anefnlhwarioumxdyrpa  
+- Region: Southeast Asia (Singapore)  
+- Local `.env` uses **Session pooler** (IPv4):  
+  `aws-0-ap-southeast-1.pooler.supabase.com:5432`  
+  user `postgres.<project-ref>` + `DB_SSLMODE=require`  
+  (Direct `db.<ref>.supabase.co` is IPv6-only — often fails on Windows.)
+
+Migrations + seed already applied against this project.
+
+To recreate / re-link via CLI:
 
 ```powershell
 cd backend
-$env:SUPABASE_ACCESS_TOKEN = "sbp_YOUR_TOKEN"
+$env:SUPABASE_ACCESS_TOKEN = "sbp_YOUR_TOKEN"   # https://supabase.com/dashboard/account/tokens
 .\scripts\setup_supabase.ps1
-# wait 1–2 minutes for DB ready
 php artisan migrate:fresh --seed
-php artisan serve
 ```
 
-3. Host Laravel API somewhere public (Railway / Render / VPS), then set Vercel `API_URL` to that host.
+### Laravel API host (still needed)
+
+Supabase hosts **Postgres only**. Deploy Laravel (Railway / Render / VPS) with the same `DB_*` env, then set Vercel `API_URL` to that public API URL.
