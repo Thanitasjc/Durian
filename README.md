@@ -71,3 +71,28 @@ NEXT_PUBLIC_GOOGLE_MAPS_API_KEY=AIzaSy...your_real_key
 - `GET /api/v1/public/products`
 - `GET /api/v1/public/trace?code=LOT-2026-0001`
 - `POST /api/v1/public/contact`
+
+## Deploy
+
+### Frontend (Vercel)
+
+- Live: https://auragold-durian.vercel.app  
+- Repo: https://github.com/Thanitasjc/Durian  
+- Set env `API_URL` = public Laravel API base URL (no trailing slash)
+
+### Backend database (Supabase)
+
+1. Login as `thparkin.pl@gmail.com` → create **Access Token**:  
+   https://supabase.com/dashboard/account/tokens
+2. PowerShell:
+
+```powershell
+cd backend
+$env:SUPABASE_ACCESS_TOKEN = "sbp_YOUR_TOKEN"
+.\scripts\setup_supabase.ps1
+# wait 1–2 minutes for DB ready
+php artisan migrate:fresh --seed
+php artisan serve
+```
+
+3. Host Laravel API somewhere public (Railway / Render / VPS), then set Vercel `API_URL` to that host.
