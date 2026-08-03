@@ -9,7 +9,7 @@ export function SiteFooter() {
           <SiteBrandLink
             className="font-heading text-lg font-bold text-white"
             accentClassName="text-accent"
-            imageClassName="h-12 w-auto max-w-[220px] object-contain"
+            imageClassName="h-16 w-auto max-w-[280px] object-contain md:h-20 md:max-w-[320px]"
           />
           <p className="mt-3 text-sm text-white/70">
             สวนทุเรียนและศูนย์แปรรูปครบวงจร เน้นคุณภาพ ความโปร่งใส และการตรวจสอบย้อนกลับ
