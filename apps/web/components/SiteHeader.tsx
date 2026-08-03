@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { FormEvent, useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import { CartLink } from "@/components/CartLink";
 import { CompareLink } from "@/components/CompareLink";
 import { SiteBrandLink } from "@/components/SiteBrand";
@@ -119,6 +120,19 @@ function MenuIcon() {
   );
 }
 
+function CloseIcon() {
+  return (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden>
+      <path
+        d="M18 6L6 18M6 6l12 12"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        strokeLinecap="round"
+      />
+    </svg>
+  );
+}
+
 function HeaderSearch({
   className = "",
   onSubmitExtra,
@@ -172,6 +186,11 @@ export function SiteHeader() {
   const [mobileExpandId, setMobileExpandId] = useState<number | null>(null);
   const [navItems, setNavItems] = useState<NavItem[]>(DEFAULT_NAV);
   const [toolbar, setToolbar] = useState<Toolbar>(DEFAULT_TOOLBAR);
+  const [portalReady, setPortalReady] = useState(false);
+
+  useEffect(() => {
+    setPortalReady(true);
+  }, []);
 
   useEffect(() => {
     const onScroll = () => {
@@ -211,12 +230,132 @@ export function SiteHeader() {
   useEffect(() => {
     if (!mobileOpen) return;
     document.body.style.overflow = "hidden";
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setMobileOpen(false);
+    };
+    window.addEventListener("keydown", onKey);
     return () => {
       document.body.style.overflow = "";
+      window.removeEventListener("keydown", onKey);
     };
   }, [mobileOpen]);
 
+  const closeMobile = () => setMobileOpen(false);
+
+  const mobileMenu =
+    portalReady &&
+    createPortal(
+      <>
+        <div
+          className={`fixed inset-0 z-[200] bg-black/40 transition-opacity xl:hidden ${
+            mobileOpen ? "opacity-100" : "pointer-events-none opacity-0"
+          }`}
+          onClick={closeMobile}
+          aria-hidden={!mobileOpen}
+        />
+        <aside
+          className={`fixed inset-y-0 left-0 z-[210] flex h-dvh max-h-dvh w-[min(100%,320px)] flex-col bg-white shadow-2xl transition-transform duration-300 xl:hidden ${
+            mobileOpen ? "translate-x-0" : "-translate-x-full pointer-events-none"
+          }`}
+          aria-hidden={!mobileOpen}
+          aria-label="เมนูมือถือ"
+        >
+          <div className="flex shrink-0 items-center justify-between border-b border-black/5 px-5 py-4">
+            <SiteBrandLink
+              className="font-heading font-bold text-primary"
+              imageClassName="h-11 w-auto max-w-[200px] object-contain"
+              onNavigate={closeMobile}
+            />
+            <button
+              type="button"
+              className="flex h-9 w-9 items-center justify-center rounded-lg text-muted hover:bg-black/5"
+              aria-label="ปิดเมนู"
+              onClick={closeMobile}
+            >
+              <CloseIcon />
+            </button>
+          </div>
+          <nav className="min-h-0 flex-1 overflow-y-auto px-3 py-4">
+            <ul className="space-y-1">
+              {navItems.map((l) => {
+                const hasChildren = (l.children?.length ?? 0) > 0;
+                const expanded = mobileExpandId === l.id;
+                return (
+                  <li key={l.id}>
+                    {hasChildren ? (
+                      <div>
+                        <div className="flex items-center">
+                          <Link
+                            href={l.href}
+                            className="flex-1 rounded-xl px-4 py-3 text-sm font-medium text-primary hover:bg-accent-soft"
+                            onClick={closeMobile}
+                          >
+                            {l.label}
+                          </Link>
+                          <button
+                            type="button"
+                            className="mr-1 flex h-9 w-9 items-center justify-center rounded-lg text-primary hover:bg-accent-soft"
+                            aria-expanded={expanded}
+                            onClick={() =>
+                              setMobileExpandId((id) =>
+                                id === l.id ? null : l.id,
+                              )
+                            }
+                          >
+                            {expanded ? "−" : "+"}
+                          </button>
+                        </div>
+                        {expanded ? (
+                          <ul className="mb-1 ml-3 space-y-0.5 border-l border-black/5 pl-2">
+                            {l.children.map((c) => (
+                              <li key={c.id}>
+                                <Link
+                                  href={c.href}
+                                  className="block rounded-lg px-3 py-2 text-sm text-muted hover:bg-accent-soft hover:text-primary"
+                                  onClick={closeMobile}
+                                >
+                                  {c.label}
+                                </Link>
+                              </li>
+                            ))}
+                          </ul>
+                        ) : null}
+                      </div>
+                    ) : (
+                      <Link
+                        href={l.href}
+                        className="block rounded-xl px-4 py-3 text-sm font-medium text-primary hover:bg-accent-soft"
+                        onClick={closeMobile}
+                      >
+                        {l.label}
+                      </Link>
+                    )}
+                  </li>
+                );
+              })}
+            </ul>
+            <div className="mt-6 border-t border-black/5 px-4 pt-4">
+              <a href="tel:021234567" className="block text-sm text-muted">
+                โทร 02-123-4567
+              </a>
+              {toolbar.account ? (
+                <Link
+                  href="/admin/login"
+                  className="mt-3 inline-flex rounded-xl bg-primary px-4 py-2.5 text-sm font-semibold text-white"
+                  onClick={closeMobile}
+                >
+                  เข้าสู่ระบบ Admin
+                </Link>
+              ) : null}
+            </div>
+          </nav>
+        </aside>
+      </>,
+      document.body,
+    );
+
   return (
+    <>
     <header
       className={`sticky top-0 z-[100] bg-surface/95 backdrop-blur-md transition-shadow ${
         scrolled ? "shadow-md" : ""
@@ -470,11 +609,11 @@ export function SiteHeader() {
             <button
               type="button"
               className="flex h-10 w-10 items-center justify-center rounded-lg text-primary transition hover:bg-primary/5 xl:hidden"
-              aria-label="เปิดเมนู"
+              aria-label={mobileOpen ? "ปิดเมนู" : "เปิดเมนู"}
               aria-expanded={mobileOpen}
-              onClick={() => setMobileOpen(true)}
+              onClick={() => setMobileOpen((v) => !v)}
             >
-              <MenuIcon />
+              {mobileOpen ? <CloseIcon /> : <MenuIcon />}
             </button>
           </div>
         </div>
@@ -485,112 +624,8 @@ export function SiteHeader() {
           </div>
         ) : null}
       </div>
-
-      {/* Mobile offcanvas */}
-      <div
-        className={`fixed inset-0 z-[80] bg-black/40 transition-opacity xl:hidden ${
-          mobileOpen ? "opacity-100" : "pointer-events-none opacity-0"
-        }`}
-        onClick={() => setMobileOpen(false)}
-        aria-hidden={!mobileOpen}
-      />
-      <aside
-        className={`fixed top-0 left-0 z-[90] flex h-full w-[min(100%,320px)] flex-col bg-white shadow-2xl transition-transform duration-300 xl:hidden ${
-          mobileOpen ? "translate-x-0" : "-translate-x-full"
-        }`}
-        aria-hidden={!mobileOpen}
-        aria-label="เมนูมือถือ"
-      >
-        <div className="flex items-center justify-between border-b border-black/5 px-5 py-4">
-          <SiteBrandLink
-            className="font-heading font-bold text-primary"
-            imageClassName="h-11 w-auto max-w-[200px] object-contain"
-            onNavigate={() => setMobileOpen(false)}
-          />
-          <button
-            type="button"
-            className="flex h-9 w-9 items-center justify-center rounded-lg text-muted hover:bg-black/5"
-            aria-label="ปิดเมนู"
-            onClick={() => setMobileOpen(false)}
-          >
-            ✕
-          </button>
-        </div>
-        <nav className="flex-1 overflow-y-auto px-3 py-4">
-          <ul className="space-y-1">
-            {navItems.map((l) => {
-              const hasChildren = (l.children?.length ?? 0) > 0;
-              const expanded = mobileExpandId === l.id;
-              return (
-                <li key={l.id}>
-                  {hasChildren ? (
-                    <div>
-                      <div className="flex items-center">
-                        <Link
-                          href={l.href}
-                          className="flex-1 rounded-xl px-4 py-3 text-sm font-medium text-primary hover:bg-accent-soft"
-                          onClick={() => setMobileOpen(false)}
-                        >
-                          {l.label}
-                        </Link>
-                        <button
-                          type="button"
-                          className="mr-1 flex h-9 w-9 items-center justify-center rounded-lg text-primary hover:bg-accent-soft"
-                          aria-expanded={expanded}
-                          onClick={() =>
-                            setMobileExpandId((id) =>
-                              id === l.id ? null : l.id,
-                            )
-                          }
-                        >
-                          {expanded ? "−" : "+"}
-                        </button>
-                      </div>
-                      {expanded ? (
-                        <ul className="mb-1 ml-3 space-y-0.5 border-l border-black/5 pl-2">
-                          {l.children.map((c) => (
-                            <li key={c.id}>
-                              <Link
-                                href={c.href}
-                                className="block rounded-lg px-3 py-2 text-sm text-muted hover:bg-accent-soft hover:text-primary"
-                                onClick={() => setMobileOpen(false)}
-                              >
-                                {c.label}
-                              </Link>
-                            </li>
-                          ))}
-                        </ul>
-                      ) : null}
-                    </div>
-                  ) : (
-                    <Link
-                      href={l.href}
-                      className="block rounded-xl px-4 py-3 text-sm font-medium text-primary hover:bg-accent-soft"
-                      onClick={() => setMobileOpen(false)}
-                    >
-                      {l.label}
-                    </Link>
-                  )}
-                </li>
-              );
-            })}
-          </ul>
-          <div className="mt-6 border-t border-black/5 px-4 pt-4">
-            <a href="tel:021234567" className="block text-sm text-muted">
-              โทร 02-123-4567
-            </a>
-            {toolbar.account ? (
-              <Link
-                href="/admin/login"
-                className="mt-3 inline-flex rounded-xl bg-primary px-4 py-2.5 text-sm font-semibold text-white"
-                onClick={() => setMobileOpen(false)}
-              >
-                เข้าสู่ระบบ Admin
-              </Link>
-            ) : null}
-          </div>
-        </nav>
-      </aside>
     </header>
+    {mobileMenu}
+    </>
   );
 }
